@@ -1,44 +1,31 @@
 //go:build darwin
-package drivedetector;
+
+package drivedetector
 
 import (
-	"bufio"
-	"bytes"
 	"os"
-	"os/exec"
-	"regexp"
-);
+	"path/filepath"
+)
 
 func Detect() ([]string, error) {
-	var drives []string;
-	dMap := make(map[string]bool);
+	var drives []string
 
-	pattern := regexp.MustCompile(`Mount Point: (.+)$`);
-
-	cmd := exec.Command("system_profiler", "SPUSBDataType");
-	out, err := cmd.Output();
-
+	entries, err := os.ReadDir("/Volumes")
 	if err != nil {
-		return nil, err;
-	};
+		return nil, err
+	}
 
-	s := bufio.NewScanner(bytes.NewReader(out));
-	for s.Scan() {
-		line := s.Text();
-		if pattern.MatchString(line) {
-			match := pattern.FindStringSubmatch(line);
-			if len(match) > 1 {
-				d := match[1];
-				dMap[d] = true;
-			};
-		};
-	};
+	for _, entry := range entries {
+		path := filepath.Join("/Volumes", entry.Name())
 
-	for k := range dMap {
-		if _, err := os.Stat(k); err == nil {
-			drives = append(drives, k);
-		};
-	};
+		if _, err := os.Stat(path); err == nil {
+			drives = append(drives, path)
+		}
+	}
 
-	return drives, nil;
-};
+	if _, err := os.Stat("/"); err == nil {
+		drives = append([]string{"/"}, drives...)
+	}
+
+	return drives, nil
+}
